@@ -1,0 +1,1801 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>逃离沙漠</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172331;
+      --muted: #617181;
+      --panel: rgba(255, 252, 245, 0.88);
+      --line: rgba(91, 107, 119, 0.22);
+      --accent: #117c78;
+      --gold: #f3bf45;
+      --danger: #c74638;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      color: var(--ink);
+      background: #dcecf4;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+    }
+
+    .game-shell {
+      width: min(100vw, 1280px);
+      height: min(100vh, 720px);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 246px;
+      gap: 10px;
+      padding: 10px;
+    }
+
+    .stage {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f4e0bd;
+      box-shadow: 0 18px 48px rgba(23, 35, 49, 0.2);
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .hud {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .brand {
+      min-width: 170px;
+      padding: 9px 11px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 252, 245, 0.7);
+      backdrop-filter: blur(8px);
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .brand p {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.25;
+    }
+
+    .meters {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .meter {
+      min-width: 82px;
+      padding: 7px 9px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 252, 245, 0.78);
+      text-align: right;
+      backdrop-filter: blur(8px);
+    }
+
+    .meter span {
+      display: block;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1;
+    }
+
+    .meter strong {
+      display: block;
+      margin-top: 3px;
+      font-size: 20px;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .message {
+      position: absolute;
+      left: 50%;
+      top: 45%;
+      transform: translate(-50%, -50%);
+      width: min(360px, calc(100% - 34px));
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 252, 245, 0.9);
+      text-align: center;
+      box-shadow: 0 14px 38px rgba(23, 35, 49, 0.2);
+      backdrop-filter: blur(10px);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 140ms ease;
+    }
+
+    .message.show {
+      opacity: 1;
+    }
+
+    .message h2 {
+      margin: 0 0 7px;
+      font-size: 28px;
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .message p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .touch-control {
+      position: absolute;
+      bottom: max(14px, env(safe-area-inset-bottom));
+      width: 112px;
+      height: 86px;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      border-radius: 8px;
+      background: rgba(23, 35, 49, 0.22);
+      color: white;
+      font-size: 22px;
+      font-weight: 900;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(8px);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      touch-action: none;
+    }
+
+    .touch-control:active {
+      background: rgba(17, 124, 120, 0.48);
+      transform: translateY(1px);
+    }
+
+    #jumpBtn {
+      left: max(14px, env(safe-area-inset-left));
+    }
+
+    #duckBtn {
+      right: max(14px, env(safe-area-inset-right));
+    }
+
+    .side {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: 0 12px 30px rgba(23, 35, 49, 0.12);
+      backdrop-filter: blur(8px);
+      overflow: hidden;
+    }
+
+    .card-head {
+      padding: 10px 11px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .card h2 {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .tabs {
+      display: flex;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .tabs button {
+      border: 0;
+      min-height: 28px;
+      padding: 0 9px;
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .tabs button.active {
+      color: white;
+      background: var(--accent);
+    }
+
+    .board-list {
+      margin: 0;
+      padding: 8px;
+      list-style: none;
+      display: grid;
+      gap: 6px;
+    }
+
+    .board-list li {
+      display: grid;
+      grid-template-columns: 26px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 7px;
+      min-height: 36px;
+      padding: 6px 7px;
+      border: 1px solid rgba(91, 107, 119, 0.14);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.45);
+      font-size: 13px;
+    }
+
+    .rank {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: rgba(17, 124, 120, 0.12);
+      color: var(--accent);
+      font-weight: 900;
+      font-size: 12px;
+    }
+
+    .board-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 800;
+    }
+
+    .board-value {
+      font-variant-numeric: tabular-nums;
+      font-weight: 900;
+    }
+
+    .submit {
+      padding: 11px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .submit label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .submit-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 7px;
+    }
+
+    input {
+      min-width: 0;
+      height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0 10px;
+      background: rgba(255, 255, 255, 0.68);
+      color: var(--ink);
+      font: inherit;
+      user-select: text;
+    }
+
+    button.primary,
+    button.secondary {
+      min-height: 38px;
+      border-radius: 8px;
+      border: 1px solid var(--accent);
+      padding: 0 11px;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    button.secondary {
+      background: transparent;
+      color: var(--accent);
+    }
+
+    .help {
+      padding: 10px 11px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .portrait-note {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      place-items: center;
+      padding: 22px;
+      background: rgba(23, 35, 49, 0.76);
+      color: white;
+      text-align: center;
+      font-weight: 900;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 980px) {
+      .game-shell {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(0, 1fr) auto;
+        padding: 6px;
+        gap: 6px;
+      }
+
+      .side {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto;
+      }
+
+      .help {
+        display: none;
+      }
+
+      .card.leader {
+        min-height: 104px;
+      }
+
+      .board-list {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 5px;
+      }
+
+      .board-list li {
+        grid-template-columns: 1fr;
+        gap: 2px;
+        text-align: center;
+        min-height: 48px;
+      }
+
+      .rank {
+        margin: 0 auto;
+      }
+
+      .brand {
+        display: none;
+      }
+    }
+
+    @media (orientation: portrait) and (max-width: 760px) {
+      .portrait-note {
+        display: grid;
+      }
+    }
+
+    @media (max-height: 430px) {
+      .game-shell {
+        grid-template-columns: minmax(0, 1fr) 210px;
+        grid-template-rows: 1fr;
+      }
+
+      .board-list {
+        grid-template-columns: 1fr;
+      }
+
+      .submit {
+        display: none;
+      }
+
+      .touch-control {
+        width: 104px;
+        height: 72px;
+        font-size: 20px;
+      }
+
+      .meter strong {
+        font-size: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="game-shell">
+    <section class="stage" aria-label="逃离沙漠游戏区域">
+      <canvas id="game" width="960" height="520" tabindex="0"></canvas>
+      <div class="hud" aria-live="polite">
+        <div class="brand">
+          <h1>逃离沙漠</h1>
+          <p>横屏游玩，吃星星和技能球，挑战排行榜。</p>
+        </div>
+        <div class="meters">
+          <div class="meter"><span>分数</span><strong id="score">00000</strong></div>
+          <div class="meter"><span>距离</span><strong id="distance">000m</strong></div>
+          <div class="meter"><span>最远</span><strong id="bestDistance">000m</strong></div>
+        </div>
+      </div>
+      <div class="message show" id="message">
+        <h2 id="messageTitle">点击开始</h2>
+        <p id="messageText">左侧跳跃，右侧下蹲；空中下蹲会快速落地。</p>
+      </div>
+      <button type="button" class="touch-control" id="jumpBtn" aria-label="跳跃">跳</button>
+      <button type="button" class="touch-control" id="duckBtn" aria-label="下蹲">蹲</button>
+    </section>
+
+    <aside class="side">
+      <section class="card leader">
+        <div class="card-head">
+          <h2>排行榜</h2>
+          <div class="tabs">
+            <button type="button" class="active" id="scoreTab">分数</button>
+            <button type="button" id="distanceTab">距离</button>
+          </div>
+        </div>
+        <ol class="board-list" id="leaderboard"></ol>
+      </section>
+
+      <section class="card submit">
+        <label for="playerName">玩家名</label>
+        <div class="submit-row">
+          <input id="playerName" maxlength="12" autocomplete="nickname" placeholder="输入名字">
+          <button type="button" class="primary" id="submitScore">上传</button>
+        </div>
+        <button type="button" class="secondary" id="restartBtn">重新开始</button>
+      </section>
+
+      <section class="card help" id="helpText">
+        键盘：空格 / ↑ 跳跃，↓ 下蹲，P 暂停，R 重开。技能球：大、快、盾、磁。在线部署后，所有玩家共享前五名排行榜。
+      </section>
+    </aside>
+  </main>
+  <div class="portrait-note">请把手机横过来玩，左右两侧会出现虚拟按键。</div>
+
+  <script>
+    (() => {
+      const canvas = document.querySelector("#game");
+      const ctx = canvas.getContext("2d");
+      const scoreEl = document.querySelector("#score");
+      const distanceEl = document.querySelector("#distance");
+      const bestDistanceEl = document.querySelector("#bestDistance");
+      const message = document.querySelector("#message");
+      const messageTitle = document.querySelector("#messageTitle");
+      const messageText = document.querySelector("#messageText");
+      const jumpBtn = document.querySelector("#jumpBtn");
+      const duckBtn = document.querySelector("#duckBtn");
+      const restartBtn = document.querySelector("#restartBtn");
+      const playerNameInput = document.querySelector("#playerName");
+      const submitScoreBtn = document.querySelector("#submitScore");
+      const leaderboardEl = document.querySelector("#leaderboard");
+      const scoreTab = document.querySelector("#scoreTab");
+      const distanceTab = document.querySelector("#distanceTab");
+      const helpText = document.querySelector("#helpText");
+
+      const GROUND_GAP = 78;
+      const GRAVITY = 2450;
+      const JUMP_POWER = 885;
+      const SECOND_JUMP_POWER = 805;
+      const FAST_FALL_POWER = 1540;
+      const MAX_JUMPS = 2;
+      const BASE_SPEED = 380;
+      const MAX_SPEED = 930;
+      const PIXELS_PER_METER = 55;
+      const STAR_GROUP_DISTANCE = 100;
+      const ACHIEVEMENT_DISTANCE = 500;
+      const FINISH_DISTANCE = 10000;
+      const EASTER_EGG_PHRASE = "成功跨越10000米沙漠";
+      const STAR_VALUE = 30;
+      const TARGET_FRAME_MS = 1000 / 50;
+      const MAX_PARTICLES = 50;
+      const POWER_TYPES = {
+        grow: { label: "大", color: "#ff8a3d", duration: 7.5 },
+        dash: { label: "快", color: "#2fa7ff", duration: 5.5 },
+        shield: { label: "盾", color: "#8a62ff", duration: 6.5 },
+        magnet: { label: "磁", color: "#23b26d", duration: 8 }
+      };
+
+      const store = {
+        get(key, fallback) {
+          try {
+            return JSON.parse(localStorage.getItem(key)) ?? fallback;
+          } catch {
+            return fallback;
+          }
+        },
+        set(key, value) {
+          try {
+            localStorage.setItem(key, JSON.stringify(value));
+          } catch {}
+        }
+      };
+
+      const state = {
+        mode: "ready",
+        width: 960,
+        height: 520,
+        score: 0,
+        distance: 0,
+        bonusScore: 0,
+        bestDistance: store.get("penguin-best-distance", 0),
+        speed: BASE_SPEED,
+        nextObstacle: 0,
+        nextPower: 2,
+        nextStarDistance: STAR_GROUP_DISTANCE,
+        nextAchievementDistance: ACHIEVEMENT_DISTANCE,
+        groundOffset: 0,
+        dayCycle: 0,
+        skyCache: document.createElement("canvas"),
+        skyCacheKey: "",
+        obstacles: [],
+        powers: [],
+        starItems: [],
+        particles: [],
+        clouds: [],
+        backStars: [],
+        activePowers: { grow: 0, dash: 0, shield: 0, magnet: 0 },
+        powerToast: "",
+        powerToastTime: 0,
+        achievementToast: "",
+        achievementToastTime: 0,
+        lastScoreText: "",
+        lastDistanceText: "",
+        lastBestDistanceText: "",
+        leaderboardMode: "score",
+        leaderboard: { score: [], distance: [] },
+        submittedThisRun: false,
+        endingTime: 0,
+        completionHintUnlocked: store.get("penguin-completion-hint", false),
+        easterEggUsed: false
+      };
+
+      const player = {
+        x: 106,
+        y: 0,
+        w: 58,
+        h: 74,
+        vy: 0,
+        ducking: false,
+        fastFalling: false,
+        grounded: true,
+        jumpsLeft: MAX_JUMPS,
+        step: 0,
+        wing: 0
+      };
+
+      function pad(value, size = 5) {
+        return String(Math.max(0, Math.floor(value))).padStart(size, "0");
+      }
+
+      function groundY() {
+        return state.height - GROUND_GAP;
+      }
+
+      function playerScale() {
+        return state.activePowers.grow > 0 ? 1.75 : 1;
+      }
+
+      function playerHeight() {
+        return (player.ducking && player.grounded ? 48 : player.h) * playerScale();
+      }
+
+      function playerBox() {
+        const scale = playerScale();
+        const h = playerHeight();
+        const w = (player.ducking && player.grounded ? 72 : player.w) * scale;
+        return {
+          x: player.x + 8 * scale,
+          y: player.y + player.h * scale - h + 6 * scale,
+          w: w - 16 * scale,
+          h: h - 12 * scale
+        };
+      }
+
+      function resetWorld() {
+        state.mode = "ready";
+        state.score = 0;
+        state.distance = 0;
+        state.bonusScore = 0;
+        state.speed = BASE_SPEED;
+        state.nextObstacle = 0.85;
+        state.nextPower = 1.4;
+        state.nextStarDistance = STAR_GROUP_DISTANCE;
+        state.nextAchievementDistance = ACHIEVEMENT_DISTANCE;
+        state.groundOffset = 0;
+        state.dayCycle = 0;
+        state.obstacles = [];
+        state.powers = [];
+        state.starItems = [];
+        state.particles = [];
+        state.submittedThisRun = false;
+        state.endingTime = 0;
+        for (const key of Object.keys(state.activePowers)) state.activePowers[key] = 0;
+        state.powerToast = "";
+        state.powerToastTime = 0;
+        state.achievementToast = "";
+        state.achievementToastTime = 0;
+        state.clouds = Array.from({ length: 5 }, (_, i) => ({
+          x: i * 230 + Math.random() * 120,
+          y: 52 + Math.random() * 118,
+          scale: 0.72 + Math.random() * 0.65,
+          speed: 16 + Math.random() * 18
+        }));
+        state.backStars = Array.from({ length: 22 }, () => ({
+          x: Math.random() * state.width,
+          y: Math.random() * Math.max(180, state.height * 0.54)
+        }));
+        player.y = groundY() - player.h;
+        player.vy = 0;
+        player.ducking = false;
+        player.fastFalling = false;
+        player.grounded = true;
+        player.jumpsLeft = MAX_JUMPS;
+        player.step = 0;
+        player.wing = 0;
+        updateHud(true);
+      }
+
+      function startGame() {
+        if (state.mode === "playing") return;
+        if (state.mode === "ready" || state.mode === "gameover" || state.mode === "won") resetWorld();
+        state.mode = "playing";
+        hideMessage();
+        canvas.focus({ preventScroll: true });
+      }
+
+      function gameOver() {
+        state.mode = "gameover";
+        state.bestDistance = Math.max(state.bestDistance, Math.floor(state.distance));
+        store.set("penguin-best-distance", state.bestDistance);
+        updateHud(true);
+        showMessage("本局结束", "输入名字上传成绩，或点画面重新开始。");
+      }
+
+      function triggerFinish() {
+        state.mode = "ending";
+        state.endingTime = 0;
+        state.distance = FINISH_DISTANCE;
+        state.score = Math.floor(state.distance) + state.bonusScore;
+        state.bestDistance = Math.max(state.bestDistance, FINISH_DISTANCE);
+        store.set("penguin-best-distance", state.bestDistance);
+        state.obstacles = [];
+        state.powers = [];
+        state.starItems = [];
+        for (const key of Object.keys(state.activePowers)) state.activePowers[key] = 0;
+        player.ducking = false;
+        player.fastFalling = false;
+        player.grounded = false;
+        player.jumpsLeft = 0;
+        player.wing = 0.4;
+        hideMessage();
+        updateHud(true);
+      }
+
+      function finishAnimationDone() {
+        state.mode = "won";
+        state.endingTime = 5.2;
+        unlockCompletionHint();
+        showMessage("逃离成功", "小企鹅成功逃离沙漠");
+      }
+
+      function unlockCompletionHint() {
+        state.completionHintUnlocked = true;
+        store.set("penguin-completion-hint", true);
+        updateHelpText();
+      }
+
+      function updateHelpText() {
+        if (state.completionHintUnlocked) {
+          helpText.textContent = "通关提示已解锁：10000m 终点是一片海。保持节奏收集星星，磁铁适合吃高处星星；快落可以精准踩障碍重置二连跳。";
+        } else {
+          helpText.textContent = "键盘：空格 / ↑ 跳跃，↓ 下蹲，P 暂停，R 重开。技能球：大、快、盾、磁。在线部署后，所有玩家共享前五名排行榜。";
+        }
+      }
+
+      function tryEasterEgg() {
+        if (state.easterEggUsed || playerNameInput.value.trim() !== EASTER_EGG_PHRASE) return;
+        state.easterEggUsed = true;
+        unlockCompletionHint();
+        if (state.mode === "ending" || state.mode === "won") return;
+        state.distance = FINISH_DISTANCE;
+        state.bonusScore += 1000;
+        triggerFinish();
+      }
+
+      function showMessage(title, text) {
+        messageTitle.textContent = title;
+        messageText.textContent = text;
+        message.classList.add("show");
+      }
+
+      function hideMessage() {
+        message.classList.remove("show");
+      }
+
+      function updateHud(force = false) {
+        const scoreText = pad(state.score);
+        const distanceText = `${pad(state.distance, 3)}m`;
+        const bestText = `${pad(state.bestDistance, 3)}m`;
+        if (force || scoreText !== state.lastScoreText) {
+          scoreEl.textContent = scoreText;
+          state.lastScoreText = scoreText;
+        }
+        if (force || distanceText !== state.lastDistanceText) {
+          distanceEl.textContent = distanceText;
+          state.lastDistanceText = distanceText;
+        }
+        if (force || bestText !== state.lastBestDistanceText) {
+          bestDistanceEl.textContent = bestText;
+          state.lastBestDistanceText = bestText;
+        }
+      }
+
+      function resize() {
+        const rect = canvas.getBoundingClientRect();
+        state.width = Math.max(620, Math.floor(rect.width));
+        state.height = Math.max(300, Math.floor(rect.height));
+        canvas.width = state.width;
+        canvas.height = state.height;
+        ctx.imageSmoothingEnabled = true;
+        state.skyCacheKey = "";
+        player.y = Math.min(player.y, groundY() - player.h * playerScale());
+      }
+
+      function jump() {
+        if (state.mode !== "playing") {
+          startGame();
+          return;
+        }
+        if (player.jumpsLeft <= 0) return;
+        const second = !player.grounded;
+        player.vy = second ? -SECOND_JUMP_POWER : -JUMP_POWER;
+        player.grounded = false;
+        player.ducking = false;
+        player.fastFalling = false;
+        player.jumpsLeft -= 1;
+        player.wing = 0.28;
+        if (second) sparkle(player.x + 28, player.y + 42, 8, "#47b5ff");
+        else dust(player.x + 20, groundY() - 4, 6);
+      }
+
+      function setDuck(value) {
+        if (state.mode !== "playing") {
+          player.ducking = false;
+          player.fastFalling = false;
+          return;
+        }
+        if (value && !player.grounded) {
+          player.fastFalling = true;
+          player.vy = Math.max(player.vy, FAST_FALL_POWER);
+          return;
+        }
+        player.fastFalling = false;
+        player.ducking = value && player.grounded;
+      }
+
+      function collide(a, b) {
+        return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+      }
+
+      function isStomping(box, obstacleBox) {
+        const horizontal = box.x + box.w > obstacleBox.x - 10 && box.x < obstacleBox.x + obstacleBox.w + 10;
+        const bottom = player.y + player.h * playerScale();
+        return horizontal && player.vy > 60 && bottom <= obstacleBox.y + 68;
+      }
+
+      function spawnObstacle() {
+        if (state.obstacles.length > 10) return;
+        const difficulty = Math.min(1, state.distance / 900);
+        const birdChance = 0.3 + difficulty * 0.36;
+        if (Math.random() < birdChance && state.distance > 45) {
+          const low = Math.random() < 0.65;
+          state.obstacles.push({
+            type: "bird",
+            x: state.width + 50,
+            y: groundY() - (low ? 86 : 142),
+            w: 52,
+            h: 32,
+            flap: 0
+          });
+        } else {
+          const group = Math.random() < 0.5 ? 2 + Math.floor(Math.random() * 2) : 1;
+          const h = 55 + Math.random() * 26;
+          state.obstacles.push({
+            type: "cactus",
+            x: state.width + 50,
+            y: groundY() - h,
+            w: 34 + group * 24,
+            h,
+            group
+          });
+        }
+        state.nextObstacle = 0.66 + Math.random() * Math.max(0.35, 1.2 - difficulty * 0.35);
+      }
+
+      function spawnPower() {
+        const keys = Object.keys(POWER_TYPES);
+        const type = keys[Math.floor(Math.random() * keys.length)];
+        const air = Math.random() < 0.36;
+        state.powers.push({
+          type,
+          x: state.width + 48,
+          y: air ? groundY() - 145 - Math.random() * 36 : groundY() - 72,
+          size: 34,
+          spin: 0
+        });
+        state.nextPower = 4.4 + Math.random() * 4.4;
+      }
+
+      function spawnStarGroup() {
+        const baseX = state.width + 70;
+        const gy = groundY();
+        const patterns = [
+          [[0, -120], [38, -164], [91, -134], [145, -187], [206, -128]],
+          [[0, -154], [54, -111], [98, -176], [154, -143], [218, -197]],
+          [[0, -102], [42, -138], [88, -191], [160, -127], [210, -161]],
+          [[0, -184], [58, -151], [105, -115], [168, -173], [232, -135]],
+          [[0, -132], [33, -202], [105, -168], [150, -116], [222, -186]]
+        ];
+        const pattern = patterns[Math.floor(Math.random() * patterns.length)];
+        const jitter = Math.random() * 18 - 9;
+        for (let i = 0; i < pattern.length; i += 1) {
+          const [dx, dy] = pattern[i];
+          state.starItems.push({ x: baseX + dx, y: gy + dy + jitter, size: 20, spin: i * 0.7 });
+        }
+      }
+
+      function activatePower(type) {
+        const power = POWER_TYPES[type];
+        state.activePowers[type] = Math.max(state.activePowers[type], power.duration);
+        state.bonusScore += 100;
+        state.powerToast = `${power.label} 技能`;
+        state.powerToastTime = 1.15;
+        sparkle(player.x + 30, player.y + 36, 8, power.color);
+      }
+
+      function collectStar(star) {
+        star.collected = true;
+        state.bonusScore += STAR_VALUE;
+        sparkle(star.x + star.size / 2, star.y + star.size / 2, 4, "#f3bf45");
+      }
+
+      function triggerAchievement(distance) {
+        state.achievementToast = `${distance}m 达成`;
+        state.achievementToastTime = 3.2;
+        for (let i = 0; i < 18; i += 1) {
+          state.particles.push({
+            x: 18 + Math.random() * (state.width - 36),
+            y: 18 + Math.random() * 34,
+            vx: -35 + Math.random() * 70,
+            vy: 20 + Math.random() * 80,
+            life: 1.1 + Math.random() * 0.8,
+            max: 2,
+            r: 2 + Math.random() * 3,
+            color: ["#f3bf45", "#ff77ad", "#47b5ff", "#23b26d"][Math.floor(Math.random() * 4)]
+          });
+        }
+        trimParticles();
+      }
+
+      function dust(x, y, count) {
+        for (let i = 0; i < Math.min(count, 6); i += 1) {
+          state.particles.push({
+            x,
+            y,
+            vx: -60 - Math.random() * 130,
+            vy: -25 - Math.random() * 60,
+            life: 0.35 + Math.random() * 0.18,
+            max: 0.55,
+            r: 2 + Math.random() * 3,
+            color: "#9f7044"
+          });
+        }
+        trimParticles();
+      }
+
+      function sparkle(x, y, count, color) {
+        for (let i = 0; i < Math.min(count, 9); i += 1) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 70 + Math.random() * 140;
+          state.particles.push({
+            x,
+            y,
+            vx: Math.cos(angle) * speed - 45,
+            vy: Math.sin(angle) * speed,
+            life: 0.28 + Math.random() * 0.22,
+            max: 0.5,
+            r: 1.5 + Math.random() * 2.4,
+            color
+          });
+        }
+        trimParticles();
+      }
+
+      function burstObstacle(obstacle, color) {
+        for (let i = 0; i < 8; i += 1) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 90 + Math.random() * 200;
+          state.particles.push({
+            x: obstacle.x + obstacle.w / 2,
+            y: obstacle.y + obstacle.h / 2,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 70,
+            life: 0.35 + Math.random() * 0.18,
+            max: 0.56,
+            r: 2 + Math.random() * 3,
+            color
+          });
+        }
+        trimParticles();
+      }
+
+      function trimParticles() {
+        if (state.particles.length > MAX_PARTICLES) {
+          state.particles.splice(0, state.particles.length - MAX_PARTICLES);
+        }
+      }
+
+      function update(dt) {
+        if (state.mode === "ending") {
+          updateEnding(dt);
+          return;
+        }
+        if (state.mode !== "playing") return;
+        for (const key of Object.keys(state.activePowers)) {
+          state.activePowers[key] = Math.max(0, state.activePowers[key] - dt);
+        }
+        state.powerToastTime = Math.max(0, state.powerToastTime - dt);
+        state.achievementToastTime = Math.max(0, state.achievementToastTime - dt);
+        const speedBoost = state.activePowers.dash > 0 ? 1.35 : 1;
+        state.speed = Math.min(MAX_SPEED * speedBoost, (BASE_SPEED + state.distance * 1.85) * speedBoost);
+        state.distance += (state.speed * dt) / PIXELS_PER_METER;
+        if (state.distance >= FINISH_DISTANCE) {
+          triggerFinish();
+          return;
+        }
+        state.score = Math.floor(state.distance) + state.bonusScore;
+        state.groundOffset = (state.groundOffset + state.speed * dt) % 48;
+        state.dayCycle = (state.dayCycle + dt * 0.018) % 1;
+        state.nextObstacle -= dt;
+        state.nextPower -= dt;
+        player.step += dt * Math.min(17, state.speed / 43);
+        player.wing = Math.max(0, player.wing - dt);
+
+        if (state.nextObstacle <= 0) spawnObstacle();
+        if (state.nextPower <= 0) spawnPower();
+        while (state.distance >= state.nextStarDistance) {
+          spawnStarGroup();
+          state.nextStarDistance += STAR_GROUP_DISTANCE;
+        }
+        while (state.distance >= state.nextAchievementDistance) {
+          triggerAchievement(state.nextAchievementDistance);
+          state.nextAchievementDistance += ACHIEVEMENT_DISTANCE;
+        }
+
+        player.vy += GRAVITY * dt;
+        player.y += player.vy * dt;
+        const floor = groundY() - player.h * playerScale();
+        if (player.y >= floor) {
+          if (!player.grounded && player.vy > 320) dust(player.x + 18, groundY() - 5, 5);
+          player.y = floor;
+          player.vy = 0;
+          player.grounded = true;
+          player.jumpsLeft = MAX_JUMPS;
+          if (player.fastFalling) {
+            player.ducking = true;
+            player.fastFalling = false;
+          }
+        }
+
+        for (const cloud of state.clouds) {
+          cloud.x -= cloud.speed * dt;
+          if (cloud.x < -160) {
+            cloud.x = state.width + Math.random() * 160;
+            cloud.y = 46 + Math.random() * 122;
+            cloud.scale = 0.72 + Math.random() * 0.65;
+          }
+        }
+
+        for (const obstacle of state.obstacles) {
+          obstacle.x -= state.speed * dt;
+          if (obstacle.type === "bird") obstacle.flap += dt * 13;
+          if (obstacle.rebounded) {
+            obstacle.y += obstacle.vy * dt;
+            obstacle.vy += 900 * dt;
+            obstacle.spin += dt * 10;
+          }
+        }
+        state.obstacles = state.obstacles.filter((item) => item.x + item.w > -70 && item.y < state.height + 80);
+
+        for (const power of state.powers) {
+          power.x -= state.speed * dt;
+          power.spin += dt * 5.4;
+          power.y += Math.sin(power.spin) * 0.2;
+        }
+        state.powers = state.powers.filter((item) => item.x + item.size > -42 && !item.collected);
+
+        const box = playerBox();
+        for (const star of state.starItems) {
+          if (state.activePowers.magnet > 0) {
+            const tx = box.x + box.w / 2;
+            const ty = box.y + box.h / 2;
+            const sx = star.x + star.size / 2;
+            const sy = star.y + star.size / 2;
+            const dx = tx - sx;
+            const dy = ty - sy;
+            const dist = Math.hypot(dx, dy) || 1;
+            if (dist < 230) {
+              const pull = Math.min(760, 220 + (230 - dist) * 3.2);
+              star.x += (dx / dist) * pull * dt;
+              star.y += (dy / dist) * pull * dt;
+            } else {
+              star.x -= state.speed * dt;
+            }
+          } else {
+            star.x -= state.speed * dt;
+          }
+          star.spin += dt * 4.5;
+          if (collide(box, { x: star.x, y: star.y, w: star.size, h: star.size })) collectStar(star);
+        }
+        state.starItems = state.starItems.filter((item) => item.x + item.size > -40 && !item.collected);
+
+        for (const power of state.powers) {
+          if (collide(box, { x: power.x, y: power.y, w: power.size, h: power.size })) {
+            activatePower(power.type);
+            power.collected = true;
+          }
+        }
+
+        for (const particle of state.particles) {
+          particle.x += particle.vx * dt;
+          particle.y += particle.vy * dt;
+          particle.vy += 400 * dt;
+          particle.life -= dt;
+        }
+        state.particles = state.particles.filter((item) => item.life > 0);
+
+        for (const obstacle of state.obstacles) {
+          if (obstacle.rebounded) continue;
+          const obstacleBox = obstacle.type === "bird"
+            ? { x: obstacle.x + 7, y: obstacle.y + 8, w: obstacle.w - 12, h: obstacle.h - 13 }
+            : { x: obstacle.x + 4, y: obstacle.y + 5, w: obstacle.w - 8, h: obstacle.h - 5 };
+          if (!collide(box, obstacleBox)) continue;
+          if (isStomping(box, obstacleBox)) {
+            obstacle.rebounded = true;
+            obstacle.vy = -620;
+            obstacle.spin = 0;
+            player.vy = -SECOND_JUMP_POWER * 0.88;
+            player.grounded = false;
+            player.ducking = false;
+            player.fastFalling = false;
+            player.jumpsLeft = MAX_JUMPS;
+            player.wing = 0.28;
+            state.bonusScore += 35;
+            burstObstacle(obstacle, "#f3bf45");
+            continue;
+          }
+          if (state.activePowers.grow > 0 || state.activePowers.dash > 0 || state.activePowers.shield > 0) {
+            if (state.activePowers.shield > 0 && state.activePowers.grow <= 0 && state.activePowers.dash <= 0) {
+              state.activePowers.shield = 0;
+            }
+            obstacle.rebounded = true;
+            obstacle.vy = -560;
+            obstacle.spin = 0;
+            state.bonusScore += 25;
+            burstObstacle(obstacle, state.activePowers.dash > 0 ? "#2fa7ff" : "#ff8a3d");
+            continue;
+          }
+          gameOver();
+          break;
+        }
+
+        state.score = Math.floor(state.distance) + state.bonusScore;
+        state.bestDistance = Math.max(state.bestDistance, Math.floor(state.distance));
+        updateHud();
+      }
+
+      function updateEnding(dt) {
+        state.endingTime += dt;
+        state.dayCycle = (state.dayCycle + dt * 0.01) % 1;
+        for (const cloud of state.clouds) {
+          cloud.x -= cloud.speed * 0.45 * dt;
+          if (cloud.x < -160) cloud.x = state.width + Math.random() * 160;
+        }
+        player.wing = 0.45;
+        if (state.endingTime > 5.2) finishAnimationDone();
+      }
+
+      function roundedRect(target, x, y, w, h, r) {
+        const radius = Math.min(r, w / 2, h / 2);
+        target.beginPath();
+        target.moveTo(x + radius, y);
+        target.arcTo(x + w, y, x + w, y + h, radius);
+        target.arcTo(x + w, y + h, x, y + h, radius);
+        target.arcTo(x, y + h, x, y, radius);
+        target.arcTo(x, y, x + w, y, radius);
+        target.closePath();
+      }
+
+      function mixColor(a, b, amount) {
+        return a.map((value, i) => Math.round(value + (b[i] - value) * amount));
+      }
+
+      function drawSky() {
+        const night = Math.sin(state.dayCycle * Math.PI * 2) * 0.5 + 0.5;
+        const key = `${state.width}x${state.height}:${Math.round(night * 8)}:${Math.round(state.dayCycle * 44)}`;
+        if (key !== state.skyCacheKey) {
+          state.skyCache.width = state.width;
+          state.skyCache.height = state.height;
+          const sky = state.skyCache.getContext("2d");
+          const top = mixColor([132, 211, 231], [25, 32, 72], night);
+          const mid = mixColor([245, 236, 204], [52, 66, 116], night);
+          const grad = sky.createLinearGradient(0, 0, 0, state.height);
+          grad.addColorStop(0, `rgb(${top.join(",")})`);
+          grad.addColorStop(0.68, `rgb(${mid.join(",")})`);
+          grad.addColorStop(1, "#dfb36c");
+          sky.fillStyle = grad;
+          sky.fillRect(0, 0, state.width, state.height);
+          if (night > 0.32) {
+            sky.save();
+            sky.globalAlpha = night * 0.72;
+            sky.fillStyle = "#f6f0c7";
+            for (const dot of state.backStars) sky.fillRect(dot.x, dot.y, 2, 2);
+            sky.restore();
+          }
+          const bodyX = state.width * (0.14 + state.dayCycle * 0.7);
+          const bodyY = 75 + Math.sin(state.dayCycle * Math.PI) * 45;
+          if (night > 0.55) {
+            sky.fillStyle = "rgba(244, 239, 200, 0.12)";
+            sky.beginPath();
+            sky.arc(bodyX - 4, bodyY, 43, 0, Math.PI * 2);
+            sky.fill();
+            sky.fillStyle = "#f4efc8";
+            sky.beginPath();
+            sky.arc(bodyX - 5, bodyY, 29, -Math.PI / 2, Math.PI / 2);
+            sky.arc(bodyX + 12, bodyY, 28, Math.PI / 2, -Math.PI / 2, true);
+            sky.closePath();
+            sky.fill();
+          } else {
+            sky.fillStyle = "rgba(242, 185, 64, 0.22)";
+            sky.beginPath();
+            sky.arc(bodyX, bodyY, 44, 0, Math.PI * 2);
+            sky.fill();
+            sky.fillStyle = "#f2b940";
+            sky.beginPath();
+            sky.arc(bodyX, bodyY, 27, 0, Math.PI * 2);
+            sky.fill();
+            sky.strokeStyle = "rgba(242, 185, 64, 0.54)";
+            sky.lineWidth = 4;
+            for (let i = 0; i < 10; i += 1) {
+              const a = i * Math.PI / 5;
+              sky.beginPath();
+              sky.moveTo(bodyX + Math.cos(a) * 38, bodyY + Math.sin(a) * 38);
+              sky.lineTo(bodyX + Math.cos(a) * 54, bodyY + Math.sin(a) * 54);
+              sky.stroke();
+            }
+          }
+          state.skyCacheKey = key;
+        }
+        ctx.drawImage(state.skyCache, 0, 0);
+      }
+
+      function drawCloud(cloud) {
+        ctx.save();
+        ctx.translate(cloud.x, cloud.y);
+        ctx.scale(cloud.scale, cloud.scale);
+        ctx.fillStyle = "rgba(255, 255, 255, 0.74)";
+        ctx.beginPath();
+        ctx.ellipse(0, 18, 42, 16, 0, 0, Math.PI * 2);
+        ctx.ellipse(34, 14, 36, 20, 0, 0, Math.PI * 2);
+        ctx.ellipse(-34, 17, 30, 16, 0, 0, Math.PI * 2);
+        ctx.ellipse(5, 2, 28, 23, 0, 0, Math.PI * 2);
+        ctx.ellipse(52, 22, 28, 12, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "rgba(125, 153, 168, 0.12)";
+        ctx.beginPath();
+        ctx.ellipse(12, 27, 58, 10, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawGround() {
+        const gy = groundY();
+        ctx.fillStyle = "#d6a65d";
+        ctx.fillRect(0, gy, state.width, state.height - gy);
+        ctx.fillStyle = "#b47b39";
+        ctx.fillRect(0, gy, state.width, 5);
+        ctx.strokeStyle = "rgba(91, 57, 30, 0.34)";
+        ctx.lineWidth = 2;
+        for (let x = -state.groundOffset; x < state.width + 60; x += 48) {
+          const y = gy + 30 + ((x / 48) % 2) * 14;
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x + 17, y);
+          ctx.stroke();
+        }
+      }
+
+      function drawPenguin() {
+        const scale = playerScale();
+        const duck = player.ducking && player.grounded;
+        const leg = Math.sin(player.step) > 0 ? 1 : -1;
+        const flap = player.wing > 0 || !player.grounded ? Math.sin(performance.now() / 80) * 12 : 0;
+        ctx.save();
+        ctx.translate(player.x, player.y);
+        ctx.scale(scale, scale);
+        if (state.activePowers.shield > 0) {
+          ctx.strokeStyle = "rgba(138, 98, 255, 0.58)";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.ellipse(30, 38, 43, 50, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        if (state.activePowers.magnet > 0) {
+          ctx.strokeStyle = "rgba(35, 178, 109, 0.42)";
+          ctx.lineWidth = 2;
+          ctx.setLineDash([7, 6]);
+          ctx.beginPath();
+          ctx.ellipse(30, 38, 58, 62, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+        ctx.fillStyle = "rgba(23, 35, 49, 0.14)";
+        ctx.beginPath();
+        ctx.ellipse(31, 76, duck ? 41 : 31, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#101923";
+        ctx.beginPath();
+        ctx.ellipse(30, duck ? 46 : 38, duck ? 35 : 28, duck ? 23 : 38, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#fff7e8";
+        ctx.beginPath();
+        ctx.ellipse(32, duck ? 47 : 43, duck ? 24 : 19, duck ? 15 : 25, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#101923";
+        ctx.beginPath();
+        ctx.ellipse(15, duck ? 45 : 48, 9, 21, -0.25 - flap * 0.018, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(47, duck ? 45 : 48, 9, 21, 0.25 + flap * 0.018, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#f29a2e";
+        ctx.beginPath();
+        ctx.moveTo(30, duck ? 35 : 29);
+        ctx.lineTo(45, duck ? 39 : 33);
+        ctx.lineTo(30, duck ? 43 : 37);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.arc(22, duck ? 31 : 24, 6, 0, Math.PI * 2);
+        ctx.arc(38, duck ? 31 : 24, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#172331";
+        ctx.beginPath();
+        ctx.arc(23, duck ? 31 : 24, 2.8, 0, Math.PI * 2);
+        ctx.arc(39, duck ? 31 : 24, 2.8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#f29a2e";
+        if (player.grounded) {
+          ctx.fillRect(18, 71 + leg * 2, 17, 6);
+          ctx.fillRect(34, 71 - leg * 2, 17, 6);
+        } else {
+          ctx.fillRect(19, 71, 16, 6);
+          ctx.fillRect(35, 69, 16, 6);
+        }
+        ctx.restore();
+      }
+
+      function drawCactus(item) {
+        ctx.save();
+        if (item.rebounded) {
+          ctx.translate(item.x + item.w / 2, item.y + item.h / 2);
+          ctx.rotate(item.spin || 0);
+          ctx.translate(-(item.x + item.w / 2), -(item.y + item.h / 2));
+        }
+        const colors = ["#1f7559", "#2d8b65", "#196149"];
+        for (let i = 0; i < item.group; i += 1) {
+          const x = item.x + i * 23;
+          const h = item.h - i * 5 + (i % 2) * 9;
+          const y = item.rebounded ? item.y + item.h - h : groundY() - h;
+          ctx.fillStyle = colors[i % colors.length];
+          roundedRect(ctx, x + 4, y, 18, h, 9);
+          ctx.fill();
+          ctx.fillRect(x - 2, y + 22, 10, 8);
+          roundedRect(ctx, x - 6, y + 13, 11, 30, 6);
+          ctx.fill();
+          ctx.fillRect(x + 20, y + 31, 10, 8);
+          roundedRect(ctx, x + 27, y + 21, 11, 34, 6);
+          ctx.fill();
+          ctx.strokeStyle = "rgba(255,255,255,0.16)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(x + 11, y + 8);
+          ctx.lineTo(x + 11, y + h - 7);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawBird(item) {
+        const wing = Math.sin(item.flap) * 10;
+        ctx.save();
+        if (item.rebounded) {
+          ctx.translate(item.x + item.w / 2, item.y + item.h / 2);
+          ctx.rotate(item.spin || 0);
+          ctx.translate(-(item.x + item.w / 2), -(item.y + item.h / 2));
+        }
+        ctx.translate(item.x, item.y);
+        ctx.fillStyle = "#6b3f38";
+        roundedRect(ctx, 8, 11, 34, 16, 8);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(38, 15);
+        ctx.lineTo(52, 19);
+        ctx.lineTo(38, 23);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = "#6b3f38";
+        ctx.lineWidth = 6;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(23, 15);
+        ctx.quadraticCurveTo(9, 7 + wing, 0, 14);
+        ctx.moveTo(26, 18);
+        ctx.quadraticCurveTo(11, 34 - wing, 2, 27);
+        ctx.stroke();
+        ctx.fillStyle = "#fffaf0";
+        ctx.fillRect(35, 14, 3, 3);
+        ctx.restore();
+      }
+
+      function drawStarItem(star) {
+        const cx = star.x + star.size / 2;
+        const cy = star.y + star.size / 2;
+        const outer = star.size / 2;
+        const inner = outer * 0.48;
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(star.spin);
+        ctx.fillStyle = "#f3bf45";
+        ctx.beginPath();
+        for (let i = 0; i < 10; i += 1) {
+          const r = i % 2 === 0 ? outer : inner;
+          const a = -Math.PI / 2 + i * Math.PI / 5;
+          const x = Math.cos(a) * r;
+          const y = Math.sin(a) * r;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = "rgba(122, 82, 16, 0.42)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawPowerBall(power) {
+        const meta = POWER_TYPES[power.type];
+        const r = power.size / 2;
+        ctx.save();
+        ctx.translate(power.x + r, power.y + r);
+        ctx.rotate(power.spin);
+        ctx.globalAlpha = 0.22;
+        ctx.fillStyle = meta.color;
+        ctx.beginPath();
+        ctx.arc(0, 0, r + 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = meta.color;
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.86)";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, r - 4, 0.25, Math.PI * 1.65);
+        ctx.stroke();
+        ctx.fillStyle = "#fffaf0";
+        ctx.font = "800 18px system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(meta.label, 0, 1);
+        ctx.restore();
+      }
+
+      function drawParticles() {
+        for (const p of state.particles) {
+          ctx.globalAlpha = Math.max(0, p.life / p.max);
+          ctx.fillStyle = p.color;
+          ctx.fillRect(p.x, p.y, p.r * 1.6, p.r * 1.6);
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      function drawHudToCanvas() {
+        let x = 16;
+        const y = 76;
+        ctx.save();
+        ctx.textBaseline = "middle";
+        for (const [type, time] of Object.entries(state.activePowers).filter(([, t]) => t > 0)) {
+          const meta = POWER_TYPES[type];
+          ctx.fillStyle = "rgba(255, 252, 245, 0.78)";
+          roundedRect(ctx, x, y, 68, 28, 8);
+          ctx.fill();
+          ctx.fillStyle = meta.color;
+          ctx.beginPath();
+          ctx.arc(x + 15, y + 14, 9, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#172331";
+          ctx.font = "800 13px system-ui, sans-serif";
+          ctx.fillText(`${meta.label} ${time.toFixed(0)}`, x + 30, y + 15);
+          x += 76;
+        }
+        if (state.powerToastTime > 0) {
+          ctx.globalAlpha = Math.min(1, state.powerToastTime);
+          ctx.fillStyle = "rgba(23, 35, 49, 0.75)";
+          ctx.font = "800 18px system-ui, sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(state.powerToast, state.width / 2, 38);
+        }
+        if (state.achievementToastTime > 0) {
+          const w = 178;
+          const h = 34;
+          const bx = state.width - w - 14;
+          const by = 70;
+          ctx.globalAlpha = Math.min(0.9, state.achievementToastTime);
+          ctx.fillStyle = "rgba(255, 252, 245, 0.78)";
+          roundedRect(ctx, bx, by, w, h, 8);
+          ctx.fill();
+          ctx.fillStyle = "#172331";
+          ctx.font = "800 14px system-ui, sans-serif";
+          ctx.textAlign = "left";
+          ctx.fillText(state.achievementToast, bx + 34, by + 18);
+          ctx.fillStyle = "#f3bf45";
+          ctx.beginPath();
+          ctx.arc(bx + 18, by + 17, 9, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      function drawFinalOceanScene() {
+        const t = state.endingTime;
+        const waterLine = groundY() - 30;
+        const beachLine = waterLine + 18;
+        const oceanStart = state.width * 0.43;
+        drawSky();
+        for (const cloud of state.clouds) drawCloud(cloud);
+
+        ctx.fillStyle = "#d6a65d";
+        ctx.fillRect(0, groundY(), state.width, state.height - groundY());
+        ctx.fillStyle = "#e7c987";
+        ctx.beginPath();
+        ctx.moveTo(0, groundY());
+        ctx.bezierCurveTo(state.width * 0.26, groundY() - 10, state.width * 0.38, waterLine + 20, oceanStart + 60, beachLine);
+        ctx.lineTo(oceanStart + 60, state.height);
+        ctx.lineTo(0, state.height);
+        ctx.closePath();
+        ctx.fill();
+
+        const ocean = ctx.createLinearGradient(0, waterLine, 0, state.height);
+        ocean.addColorStop(0, "#46b9d7");
+        ocean.addColorStop(0.52, "#1685b7");
+        ocean.addColorStop(1, "#0c5a8f");
+        ctx.fillStyle = ocean;
+        ctx.beginPath();
+        ctx.moveTo(oceanStart, waterLine);
+        for (let x = oceanStart; x <= state.width + 24; x += 24) {
+          const y = waterLine + Math.sin((x + t * 120) / 34) * 7;
+          ctx.lineTo(x, y);
+        }
+        ctx.lineTo(state.width, state.height);
+        ctx.lineTo(oceanStart, state.height);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = "rgba(255,255,255,0.72)";
+        ctx.lineWidth = 3;
+        for (let row = 0; row < 5; row += 1) {
+          const y = waterLine + 22 + row * 28;
+          ctx.beginPath();
+          for (let x = oceanStart + 10; x < state.width; x += 28) {
+            ctx.moveTo(x, y + Math.sin((x + t * 90) / 42) * 5);
+            ctx.quadraticCurveTo(x + 10, y - 6, x + 22, y);
+          }
+          ctx.stroke();
+        }
+
+        ctx.fillStyle = "rgba(23,35,49,0.45)";
+        ctx.font = "900 24px system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("10000m 终点", oceanStart + 82, waterLine - 26);
+        ctx.fillStyle = "#f3bf45";
+        ctx.fillRect(oceanStart + 78, waterLine - 18, 7, 54);
+        ctx.fillStyle = "#ff6e72";
+        ctx.beginPath();
+        ctx.moveTo(oceanStart + 85, waterLine - 18);
+        ctx.lineTo(oceanStart + 130, waterLine - 5);
+        ctx.lineTo(oceanStart + 85, waterLine + 8);
+        ctx.closePath();
+        ctx.fill();
+
+        drawFinalPenguin(oceanStart, waterLine, t);
+        drawHudToCanvas();
+      }
+
+      function drawFinalPenguin(oceanStart, waterLine, t) {
+        let x;
+        let y;
+        let swim = false;
+        if (t < 1.25) {
+          const p = t / 1.25;
+          x = 106 + (oceanStart - 108) * p;
+          y = groundY() - 74;
+        } else if (t < 2.45) {
+          const p = (t - 1.25) / 1.2;
+          x = oceanStart - 16 + 128 * p;
+          y = waterLine - 74 - Math.sin(p * Math.PI) * 92 + p * 62;
+        } else {
+          const p = Math.min(1, (t - 2.45) / 2.7);
+          x = oceanStart + 112 + (state.width - oceanStart - 170) * p;
+          y = waterLine + 18 + Math.sin(t * 5) * 5;
+          swim = true;
+        }
+
+        if (t > 2.15 && t < 2.85) {
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, 1 - Math.abs(t - 2.5) * 1.5);
+          ctx.strokeStyle = "rgba(255,255,255,0.85)";
+          ctx.lineWidth = 4;
+          for (let i = 0; i < 3; i += 1) {
+            ctx.beginPath();
+            ctx.arc(oceanStart + 120, waterLine + 16, 18 + i * 13, 0.2, Math.PI * 1.25);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+
+        drawPenguinPose(x, y, swim, t);
+      }
+
+      function drawPenguinPose(x, y, swim, t) {
+        if (swim) {
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(-0.08 + Math.sin(t * 7) * 0.05);
+          ctx.fillStyle = "#101923";
+          ctx.beginPath();
+          ctx.ellipse(30, 35, 35, 21, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#fff7e8";
+          ctx.beginPath();
+          ctx.ellipse(35, 36, 21, 13, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#101923";
+          ctx.beginPath();
+          ctx.ellipse(12, 34, 11, 24, -0.55, 0, Math.PI * 2);
+          ctx.ellipse(50, 37, 10, 22, 0.65, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#ffffff";
+          ctx.beginPath();
+          ctx.arc(47, 26, 5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#172331";
+          ctx.beginPath();
+          ctx.arc(48, 26, 2.4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#f29a2e";
+          ctx.beginPath();
+          ctx.moveTo(57, 32);
+          ctx.lineTo(74, 36);
+          ctx.lineTo(57, 40);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        } else {
+          const oldX = player.x;
+          const oldY = player.y;
+          const oldGrounded = player.grounded;
+          const oldWing = player.wing;
+          player.x = x;
+          player.y = y;
+          player.grounded = false;
+          player.wing = 0.35;
+          drawPenguin();
+          player.x = oldX;
+          player.y = oldY;
+          player.grounded = oldGrounded;
+          player.wing = oldWing;
+        }
+      }
+
+      function render() {
+        ctx.clearRect(0, 0, state.width, state.height);
+        if (state.mode === "ending" || state.mode === "won") {
+          drawFinalOceanScene();
+          return;
+        }
+        drawSky();
+        for (const cloud of state.clouds) drawCloud(cloud);
+        drawGround();
+        for (const star of state.starItems) drawStarItem(star);
+        for (const power of state.powers) drawPowerBall(power);
+        for (const obstacle of state.obstacles) {
+          if (obstacle.type === "bird") drawBird(obstacle);
+          else drawCactus(obstacle);
+        }
+        drawParticles();
+        drawPenguin();
+        drawHudToCanvas();
+      }
+
+      let lastTime = performance.now();
+      let lastFrame = 0;
+      function loop(now) {
+        if (now - lastFrame >= TARGET_FRAME_MS) {
+          const dt = Math.min(0.04, (now - lastTime) / 1000);
+          lastTime = now;
+          lastFrame = now;
+          update(dt);
+          render();
+        }
+        requestAnimationFrame(loop);
+      }
+
+      async function fetchLeaderboard() {
+        try {
+          const res = await fetch("/api/leaderboard", { cache: "no-store" });
+          if (!res.ok) throw new Error("leaderboard unavailable");
+          state.leaderboard = await res.json();
+        } catch {
+          state.leaderboard = store.get("penguin-local-leaderboard", { score: [], distance: [] });
+        }
+        renderLeaderboard();
+      }
+
+      async function submitLeaderboard() {
+        const name = (playerNameInput.value || "企鹅玩家").trim().slice(0, 12);
+        const entry = { name, score: Math.floor(state.score), distance: Math.floor(state.distance) };
+        if (!entry.score && !entry.distance) return;
+        try {
+          const res = await fetch("/api/leaderboard", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(entry)
+          });
+          if (!res.ok) throw new Error("submit failed");
+          state.leaderboard = await res.json();
+        } catch {
+          const local = store.get("penguin-local-leaderboard", { score: [], distance: [] });
+          local.score = [...local.score, entry].sort((a, b) => b.score - a.score).slice(0, 5);
+          local.distance = [...local.distance, entry].sort((a, b) => b.distance - a.distance).slice(0, 5);
+          store.set("penguin-local-leaderboard", local);
+          state.leaderboard = local;
+        }
+        state.submittedThisRun = true;
+        renderLeaderboard();
+      }
+
+      function renderLeaderboard() {
+        scoreTab.classList.toggle("active", state.leaderboardMode === "score");
+        distanceTab.classList.toggle("active", state.leaderboardMode === "distance");
+        const list = state.leaderboard[state.leaderboardMode] || [];
+        leaderboardEl.innerHTML = "";
+        for (let i = 0; i < 5; i += 1) {
+          const entry = list[i];
+          const li = document.createElement("li");
+          li.innerHTML = entry
+            ? `<span class="rank">${i + 1}</span><span class="board-name"></span><span class="board-value">${state.leaderboardMode === "score" ? pad(entry.score) : `${pad(entry.distance, 3)}m`}</span>`
+            : `<span class="rank">${i + 1}</span><span class="board-name">空位</span><span class="board-value">-</span>`;
+          if (entry) li.querySelector(".board-name").textContent = entry.name;
+          leaderboardEl.appendChild(li);
+        }
+      }
+
+      function restart() {
+        resetWorld();
+        startGame();
+      }
+
+      window.addEventListener("resize", resize);
+      window.addEventListener("keydown", (event) => {
+        if (["Space", "ArrowUp", "ArrowDown"].includes(event.code)) event.preventDefault();
+        if (event.code === "Space" || event.code === "ArrowUp" || event.code === "KeyW") jump();
+        if (event.code === "ArrowDown" || event.code === "KeyS") setDuck(true);
+        if (event.code === "KeyP") {
+          state.mode = state.mode === "playing" ? "paused" : "playing";
+          if (state.mode === "paused") showMessage("已暂停", "按 P 继续。");
+          else hideMessage();
+        }
+        if (event.code === "KeyR") restart();
+      });
+      window.addEventListener("keyup", (event) => {
+        if (event.code === "ArrowDown" || event.code === "KeyS") setDuck(false);
+      });
+
+      canvas.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        canvas.focus({ preventScroll: true });
+        jump();
+      });
+      jumpBtn.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        jump();
+      });
+      duckBtn.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        setDuck(true);
+      });
+      duckBtn.addEventListener("pointerup", () => setDuck(false));
+      duckBtn.addEventListener("pointercancel", () => setDuck(false));
+      duckBtn.addEventListener("pointerleave", () => setDuck(false));
+      restartBtn.addEventListener("click", restart);
+      submitScoreBtn.addEventListener("click", submitLeaderboard);
+      playerNameInput.addEventListener("input", tryEasterEgg);
+      scoreTab.addEventListener("click", () => {
+        state.leaderboardMode = "score";
+        renderLeaderboard();
+      });
+      distanceTab.addEventListener("click", () => {
+        state.leaderboardMode = "distance";
+        renderLeaderboard();
+      });
+
+      resetWorld();
+      resize();
+      updateHelpText();
+      fetchLeaderboard();
+      requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
+</html>
